@@ -1,0 +1,331 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Kalkulator Akar (Metode Secant)</title>
+    <style>
+        body {
+            font-family: 'Poppins', sans-serif;
+            margin: 0;
+            padding: 0;
+            background-color: #e3f2fd;
+            display: flex;
+            flex-direction: column;
+            justify-content: flex-start;
+            align-items: center;
+            min-height: 100vh; /* Menjamin minimal tinggi 100vh */
+        }
+
+        .content {
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            width: 100%;
+            flex-grow: 1; /* Membuat konten mengisi ruang yang tersisa */
+        }
+
+        .form-section, .output-section {
+            width: 90%;
+            max-width: 1200px;
+            padding: 40px;
+            background: #ffffff;
+            border-radius: 12px;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+            margin-bottom: 20px;
+        }
+
+        h1 {
+            text-align: center;
+            margin-bottom: 20px;
+            color: #007bff;
+        }
+
+        label {
+            display: block;
+            margin: 10px 0 5px;
+            font-weight: 600;
+        }
+
+        input[type="text"] {
+            width: 100%;
+            padding: 12px;
+            margin-bottom: 20px;
+            border: 1px solid #ccc;
+            border-radius: 6px;
+            font-size: 14px;
+        }
+
+        input[type="text"]:focus {
+            outline: none;
+            border-color: #007bff;
+            box-shadow: 0 0 8px rgba(0, 123, 255, 0.2);
+        }
+
+        button {
+            width: 100%;
+            padding: 12px;
+            background-color: #007bff;
+            color: white;
+            border: none;
+            border-radius: 6px;
+            font-size: 16px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: background-color 0.3s, transform 0.2s;
+            margin-bottom: 10px;
+        }
+
+        button:hover {
+            background-color: #0056b3;
+            transform: translateY(-2px);
+        }
+
+        .result {
+            margin-top: 20px;
+            padding: 15px;
+            background-color: #e3f7e5;
+            border: 1px solid #28a745;
+            border-radius: 6px;
+            color: #155724;
+            font-size: 14px;
+            overflow-wrap: break-word;
+        }
+
+        #chart {
+            margin-top: 20px;
+            background: #f8f9fa;
+            border-radius: 8px;
+            padding: 10px;
+        }
+
+        footer {
+            text-align: center;
+            padding: 10px;
+            background-color: #007bff;
+            color: white;
+            font-size: 12px;
+            margin-top: 20px;
+            width: 100%;
+        }
+
+        .output-section {
+            display: none; /* Menyembunyikan output secara default */
+        }
+    </style>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+<body>
+    <div class="content">
+        <div class="form-section">
+            <h1>Kalkulator Metode Secant</h1>
+            <h1>(Sengsel 1.0)</h1>
+            <label for="function">Fungsi (contoh: x^2 - 4)</label>
+            <input type="text" id="function" placeholder="Masukkan fungsi di sini">
+
+            <label for="x0">Nilai Awal x0</label>
+            <input type="text" id="x0" placeholder="Masukkan nilai x0">
+
+            <label for="x1">Nilai Awal x1</label>
+            <input type="text" id="x1" placeholder="Masukkan nilai x1">
+
+            <label for="tolerance">Toleransi Error</label>
+            <input type="text" id="tolerance" placeholder="Masukkan toleransi (contoh: 0.0001)">
+
+            <label for="maxIterations">Maksimum Iterasi</label>
+            <input type="text" id="maxIterations" placeholder="Masukkan maksimum iterasi">
+
+            <button onclick="calculateRoot()">Hitung Akar</button>
+            <button onclick="resetInputs()">Reset</button>
+        </div>
+
+        <div class="output-section">
+            <div id="result" class="result"></div>
+            <canvas id="chart" width="400" height="200"></canvas>
+        </div>
+    </div>
+
+    <footer>
+        &copy; 2025 Kalkulator Metode Secant. All Rights Reserved.
+    </footer>
+
+    <script>
+        let chartInstance = null; // Variable untuk menyimpan chart yang sedang aktif
+
+        function evaluateFunction(func, x) {
+            try {
+                // Mengganti simbol ^ dengan ** untuk eksponensial dan menggantikan Math.pow jika ada
+                func = func.replace(/\^/g, '**'); // Ganti ^ dengan **
+                func = func.replace(/Math\.pow\(/g, '**('); // Ganti Math.pow(x, y) menjadi x**y
+                return Function('x', `return ${func}`)(x);
+            } catch (e) {
+                return NaN;
+            }
+        }
+
+        function validateInputs() {
+            const func = document.getElementById('function').value;
+            const x0 = parseFloat(document.getElementById('x0').value);
+            const x1 = parseFloat(document.getElementById('x1').value);
+            const tolerance = parseFloat(document.getElementById('tolerance').value);
+            const maxIterations = parseInt(document.getElementById('maxIterations').value);
+
+            // Validasi fungsi
+            if (func.trim() === '') {
+                alert('Fungsi tidak boleh kosong.');
+                return false;
+            } else if (isNaN(evaluateFunction(func, 1))) {
+                alert('Fungsi tidak valid.');
+                return false;
+            }
+
+            // Validasi x0 dan x1
+            if (isNaN(x0)) {
+                alert('Nilai x0 harus berupa angka.');
+                return false;
+            }
+
+            if (isNaN(x1)) {
+                alert('Nilai x1 harus berupa angka.');
+                return false;
+            }
+
+            // Validasi toleransi
+            if (isNaN(tolerance)) {
+                alert('Toleransi harus berupa angka.');
+                return false;
+            }
+
+            // Validasi maksimum iterasi
+            if (isNaN(maxIterations) || maxIterations <= 0) {
+                alert('Maksimum iterasi harus berupa angka positif.');
+                return false;
+            }
+
+            return true;
+        }
+
+        function calculateRoot() {
+            if (!validateInputs()) return;
+
+            const func = document.getElementById('function').value;
+            let x0 = parseFloat(document.getElementById('x0').value);
+            let x1 = parseFloat(document.getElementById('x1').value);
+            const tolerance = parseFloat(document.getElementById('tolerance').value);
+            const maxIterations = parseInt(document.getElementById('maxIterations').value);
+
+            let resultDiv = document.getElementById('result');
+            resultDiv.innerHTML = '';
+
+            let iteration = 0;
+            let x2;
+            let data = [];
+
+            // Menampilkan bagian output
+            document.querySelector('.output-section').style.display = 'block';
+
+            while (iteration < maxIterations) {
+                const f0 = evaluateFunction(func, x0);
+                const f1 = evaluateFunction(func, x1);
+
+                if (Math.abs(f1 - f0) < 1e-10) {
+                    resultDiv.innerHTML = 'Error: Pembagian dengan nol terdeteksi.';
+                    
+                    // Hancurkan chart lama jika ada
+                    if (chartInstance) {
+                        chartInstance.destroy();
+                        chartInstance = null; // Reset chartInstance
+                    }
+
+                    return;
+                }
+
+                x2 = x1 - (f1 * (x1 - x0)) / (f1 - f0);
+                data.push({ iteration: iteration + 1, x: x2 });
+
+                resultDiv.innerHTML += `Iterasi ${iteration + 1}: x = ${x2.toFixed(6)}<br>`;
+
+                if (Math.abs(x2 - x1) < tolerance) {
+                    resultDiv.innerHTML += `<br>Akar ditemukan: <b>${x2.toFixed(6)}</b> setelah ${iteration + 1} iterasi.`;
+                    visualizeData(data);
+                    return;
+                }
+
+                x0 = x1;
+                x1 = x2;
+                iteration++;
+            }
+
+            resultDiv.innerHTML += `Akar tidak ditemukan setelah maksimum iterasi (${maxIterations}).`;
+            visualizeData(data);
+        }
+
+        function visualizeData(data) {
+            const ctx = document.getElementById('chart').getContext('2d');
+
+            // Hancurkan chart lama jika ada
+            if (chartInstance) {
+                chartInstance.destroy();
+            }
+
+            const labels = data.map(d => `Iterasi ${d.iteration}`);
+            const values = data.map(d => d.x);
+
+            // Membuat chart baru
+            chartInstance = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: labels,
+                    datasets: [{
+                        label: 'Nilai x pada setiap iterasi',
+                        data: values,
+                        borderColor: 'rgba(75, 192, 192, 1)',
+                        borderWidth: 2,
+                        fill: false
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    plugins: {
+                        legend: {
+                            display: true,
+                            position: 'top'
+                        }
+                    },
+                    scales: {
+                        x: {
+                            title: {
+                                display: true,
+                                text: 'Iterasi'
+                            }
+                        },
+                        y: {
+                            title: {
+                                display: true,
+                                text: 'Nilai x'
+                            }
+                        }
+                    }
+                }
+            });
+        }
+
+        function resetInputs() {
+            document.getElementById('function').value = '';
+            document.getElementById('x0').value = '';
+            document.getElementById('x1').value = '';
+            document.getElementById('tolerance').value = '';
+            document.getElementById('maxIterations').value = '';
+            document.getElementById('result').innerHTML = '';
+            document.querySelector('.output-section').style.display = 'none'; // Menyembunyikan hasil dan grafik
+
+            // Menghancurkan chart jika ada
+            if (chartInstance) {
+                chartInstance.destroy();
+                chartInstance = null; // Reset chartInstance
+            }
+        }
+    </script>
+</body>
+</html>
