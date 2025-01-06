@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Kalkulator Akar (Metode Secant)</title>
+    <title>Rootify</title>
     <style>
         body {
             font-family: 'Poppins', sans-serif;
@@ -23,7 +23,7 @@
             justify-content: center;
             align-items: center;
             width: 100%;
-            flex-grow: 1; 
+            flex-grow: 1;
         }
 
         .form-section, .output-section {
@@ -54,7 +54,7 @@
             font-weight: 600;
         }
 
-        input[type="text"] {
+        input[type="text"], select {
             width: 100%;
             padding: 12px;
             margin-bottom: 20px;
@@ -63,7 +63,7 @@
             font-size: 14px;
         }
 
-        input[type="text"]:focus {
+        input[type="text"]:focus, select:focus {
             outline: none;
             border-color: #007bff;
             box-shadow: 0 0 8px rgba(0, 123, 255, 0.2);
@@ -111,11 +111,12 @@
             background-color: #007bff;
             color: white;
             font-size: 12px;
+            margin-top: 20px;
             width: 100%;
         }
 
         .output-section {
-            display: none; 
+            display: none;
         }
     </style>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
@@ -123,9 +124,9 @@
 <body>
     <div class="content">
         <div class="form-section">
-            <h1>Secant Calculator</h1>
+            <h1>Rootify</h1>
             <p>(Sengsel 1.0)</p>
-            <label for="function">Fungsi (contoh: x^2 - 4)</label>
+            <label for="function">Fungsi</label>
             <input type="text" id="function" placeholder="Masukkan fungsi di sini">
 
             <label for="x0">Nilai Awal x0</label>
@@ -140,7 +141,15 @@
             <label for="maxIterations">Maksimum Iterasi</label>
             <input type="text" id="maxIterations" placeholder="Masukkan maksimum iterasi">
 
-            <button onclick="calculateRoot()">Hitung Akar</button>
+            <label for="method">Pilih Metode</label>
+            <select id="method">
+                <option value="secant">Metode Secant</option>
+                <option value="bisection">Metode Bisection</option>
+                <option value="regulaFalsi">Metode Regula Falsi</option>
+                <option value="newtonRaphson">Metode Newton-Raphson</option>
+            </select>
+
+            <button onclick="calculateRoot()">Hitung</button>
             <button onclick="resetInputs()">Reset</button>
         </div>
 
@@ -151,7 +160,7 @@
     </div>
 
     <footer>
-        &copy; 2025 Sengsel - (Kalkulator Metode Secant). All Rights Reserved.
+        &copy; 2025 Sengsel - (Kalkulator Metode Secant, Bisection, Regula Falsi & Newton-Raphson). All Rights Reserved.
     </footer>
 
     <script>
@@ -159,12 +168,19 @@
 
         function evaluateFunction(func, x) {
             try {
-                func = func.replace(/\^/g, '**'); 
-                func = func.replace(/Math\.pow\(/g, '**(');
+                func = func.replace(/\^/g, '**');
+                func = func.replace(/e/g, Math.E);
                 return Function('x', `return ${func}`)(x);
             } catch (e) {
                 return NaN;
             }
+        }
+
+        function evaluateFunctionDerivative(func, x) {
+            const delta = 1e-6;
+            const fXPlusDelta = evaluateFunction(func, x + delta);
+            const fX = evaluateFunction(func, x);
+            return (fXPlusDelta - fX) / delta;
         }
 
         function validateInputs() {
@@ -208,6 +224,22 @@
         function calculateRoot() {
             if (!validateInputs()) return;
 
+            const method = document.getElementById('method').value;
+
+            if (method === 'secant') {
+                calculateRootSecant();
+            } else if (method === 'bisection') {
+                calculateRootBisection();
+            } else if (method === 'regulaFalsi') {
+                calculateRootRegulaFalsi();
+            } else if (method === 'newtonRaphson') {
+                calculateRootNewtonRaphson();
+            } else {
+                alert('Metode tidak valid.');
+            }
+        }
+
+        function calculateRootSecant() {
             const func = document.getElementById('function').value;
             let x0 = parseFloat(document.getElementById('x0').value);
             let x1 = parseFloat(document.getElementById('x1').value);
@@ -229,12 +261,10 @@
 
                 if (Math.abs(f1 - f0) < 1e-10) {
                     resultDiv.innerHTML = 'Error: Pembagian dengan nol terdeteksi.';
-                    
                     if (chartInstance) {
                         chartInstance.destroy();
-                        chartInstance = null; 
+                        chartInstance = null;
                     }
-
                     return;
                 }
 
@@ -258,36 +288,156 @@
             visualizeData(data);
         }
 
+        function calculateRootBisection() {
+            const func = document.getElementById('function').value;
+            let a = parseFloat(document.getElementById('x0').value);
+            let b = parseFloat(document.getElementById('x1').value);
+            const tolerance = parseFloat(document.getElementById('tolerance').value);
+            const maxIterations = parseInt(document.getElementById('maxIterations').value);
+
+            let resultDiv = document.getElementById('result');
+            resultDiv.innerHTML = '';
+
+            let iteration = 0;
+            let c;
+            let data = [];
+
+            document.querySelector('.output-section').style.display = 'block';
+
+            while (iteration < maxIterations) {
+                c = (a + b) / 2;
+                data.push({ iteration: iteration + 1, x: c });
+
+                const fA = evaluateFunction(func, a);
+                const fC = evaluateFunction(func, c);
+
+                resultDiv.innerHTML += `Iterasi ${iteration + 1}: c = ${c.toFixed(6)}<br>`;
+
+                if (Math.abs(fC) < tolerance || Math.abs(b - a) < tolerance) {
+                    resultDiv.innerHTML += `<br>Akar ditemukan: <b>${c.toFixed(6)}</b> setelah ${iteration + 1} iterasi.`;
+                    visualizeData(data);
+                    return;
+                }
+
+                if (fA * fC < 0) {
+                    b = c;
+                } else {
+                    a = c;
+                }
+
+                iteration++;
+            }
+
+            resultDiv.innerHTML += `Akar tidak ditemukan setelah maksimum iterasi (${maxIterations}).`;
+            visualizeData(data);
+        }
+
+        function calculateRootRegulaFalsi() {
+            const func = document.getElementById('function').value;
+            let a = parseFloat(document.getElementById('x0').value);
+            let b = parseFloat(document.getElementById('x1').value);
+            const tolerance = parseFloat(document.getElementById('tolerance').value);
+            const maxIterations = parseInt(document.getElementById('maxIterations').value);
+
+            let resultDiv = document.getElementById('result');
+            resultDiv.innerHTML = '';
+
+            let iteration = 0;
+            let c;
+            let data = [];
+
+            document.querySelector('.output-section').style.display = 'block';
+
+            while (iteration < maxIterations) {
+                const fA = evaluateFunction(func, a);
+                const fB = evaluateFunction(func, b);
+
+                c = b - (fB * (b - a)) / (fB - fA);
+                data.push({ iteration: iteration + 1, x: c });
+
+                resultDiv.innerHTML += `Iterasi ${iteration + 1}: c = ${c.toFixed(6)}<br>`;
+
+                if (Math.abs(fA) < tolerance || Math.abs(fB) < tolerance || Math.abs(b - a) < tolerance) {
+                    resultDiv.innerHTML += `<br>Akar ditemukan: <b>${c.toFixed(6)}</b> setelah ${iteration + 1} iterasi.`;
+                    visualizeData(data);
+                    return;
+                }
+
+                if (fA * fB < 0) {
+                    b = c;
+                } else {
+                    a = c;
+                }
+
+                iteration++;
+            }
+
+            resultDiv.innerHTML += `Akar tidak ditemukan setelah maksimum iterasi (${maxIterations}).`;
+            visualizeData(data);
+        }
+
+        function calculateRootNewtonRaphson() {
+            const func = document.getElementById('function').value;
+            const x0 = parseFloat(document.getElementById('x0').value);
+            const tolerance = parseFloat(document.getElementById('tolerance').value);
+            const maxIterations = parseInt(document.getElementById('maxIterations').value);
+
+            let resultDiv = document.getElementById('result');
+            resultDiv.innerHTML = '';
+
+            let iteration = 0;
+            let x1 = x0;
+            let data = [];
+
+            document.querySelector('.output-section').style.display = 'block';
+
+            while (iteration < maxIterations) {
+                const fX0 = evaluateFunction(func, x1);
+                const fPrimeX0 = evaluateFunctionDerivative(func, x1);
+
+                if (Math.abs(fPrimeX0) < 1e-10) {
+                    resultDiv.innerHTML = 'Error: Turunan fungsi mendekati nol.';
+                    return;
+                }
+
+                const x2 = x1 - fX0 / fPrimeX0;
+                data.push({ iteration: iteration + 1, x: x2 });
+
+                resultDiv.innerHTML += `Iterasi ${iteration + 1}: x = ${x2.toFixed(6)}<br>`;
+
+                if (Math.abs(x2 - x1) < tolerance) {
+                    resultDiv.innerHTML += `<br>Akar ditemukan: <b>${x2.toFixed(6)}</b> setelah ${iteration + 1} iterasi.`;
+                    visualizeData(data);
+                    return;
+                }
+
+                x1 = x2;
+                iteration++;
+            }
+
+            resultDiv.innerHTML += `Akar tidak ditemukan setelah maksimum iterasi (${maxIterations}).`;
+            visualizeData(data);
+        }
+
         function visualizeData(data) {
             const ctx = document.getElementById('chart').getContext('2d');
-
             if (chartInstance) {
                 chartInstance.destroy();
             }
-
-            const labels = data.map(d => `Iterasi ${d.iteration}`);
-            const values = data.map(d => d.x);
-
             chartInstance = new Chart(ctx, {
                 type: 'line',
                 data: {
-                    labels: labels,
+                    labels: data.map(item => `Iterasi ${item.iteration}`),
                     datasets: [{
-                        label: 'Nilai x pada setiap iterasi',
-                        data: values,
-                        borderColor: 'rgba(75, 192, 192, 1)',
-                        borderWidth: 2,
-                        fill: false
+                        label: 'Nilai Akar',
+                        data: data.map(item => item.x),
+                        borderColor: '#007bff',
+                        fill: false,
+                        tension: 0.1
                     }]
                 },
                 options: {
                     responsive: true,
-                    plugins: {
-                        legend: {
-                            display: true,
-                            position: 'top'
-                        }
-                    },
                     scales: {
                         x: {
                             title: {
@@ -298,7 +448,7 @@
                         y: {
                             title: {
                                 display: true,
-                                text: 'Nilai x'
+                                text: 'Nilai Akar'
                             }
                         }
                     }
@@ -312,12 +462,12 @@
             document.getElementById('x1').value = '';
             document.getElementById('tolerance').value = '';
             document.getElementById('maxIterations').value = '';
+            document.getElementById('method').value = 'secant';
             document.getElementById('result').innerHTML = '';
-            document.querySelector('.output-section').style.display = 'none'; 
-
+            document.querySelector('.output-section').style.display = 'none';
             if (chartInstance) {
                 chartInstance.destroy();
-                chartInstance = null; 
+                chartInstance = null;
             }
         }
     </script>
