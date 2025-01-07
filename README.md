@@ -9,4 +9,3 @@ Nama Anggota : <br>
 5. Faalih Aziz Taquyyuddin (2201020095) <br>
 
 Status Project : Done
-halta kick
