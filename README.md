@@ -1,7 +1,7 @@
 Project Mata Kuliah Metode Numerik
 
 <b>Kelompok Sengsel 1.0<b> <br>
-Nama Anggota : 
+Nama Anggota : <br>
 1. Haikal Purnama Aji (2201020065) <br>
 2. Renaldi Anicetus Simbolon (2201020067) <br>
 3. Halta Putra Ash Sidiq (2201020092) <br>
